@@ -539,7 +539,7 @@
             for (var k = 0; k < newItems.length; k++) {
                 var d = newItems[k]; d.chain = false; d.skipped = false; d.loop = false; displayList.push(d);
             }
-            if (displayList.length > 0 && !isPlaying) wwr_req("SET/POS/" + displayList[0].start);
+            if (displayList.length > 0 && !isPlaying) wwr_req("SET/POS_STR/r" + displayList[0].id);
             initialized = true;
         } else {
             var activeIDs = {}; 
@@ -880,7 +880,7 @@
         if (activeRegion) {
             if (activeRegion.skipped) {
                 var next = findNextValidSong(activeIdx);
-                if (next) { wwr_req("SET/POS/" + next.start); return; }
+                if (next) { wwr_req("SET/POS_STR/r" + next.id); return; }
             }
             var row = document.getElementById("row-" + activeRegion.id);
             if (row) {
@@ -903,10 +903,10 @@
             }
             var timeRemaining = activeRegion.end - currentPos;
             if (timeRemaining <= 0.2 && timeRemaining > -1 && isPlaying) {
-                if (activeRegion.loop) { wwr_req("SET/POS/" + activeRegion.start); return; }
+                if (activeRegion.loop) { wwr_req("SET/POS_STR/r" + activeRegion.id); return; }
                 
                 if (queuedRegion) {
-                    wwr_req("SET/POS/" + queuedRegion.start); queuedRegion = null;
+                    wwr_req("SET/POS_STR/r" + queuedRegion.id); queuedRegion = null;
                     var queuedEls = document.querySelectorAll('.region-item');
                     for(var k=0; k<queuedEls.length; k++) queuedEls[k].classList.remove('queued');
                     return;
@@ -917,12 +917,15 @@
 
                 if (shouldPlayNext) {
                     var nextRegion = findNextValidSong(activeIdx);
-                    if (nextRegion) { wwr_req("SET/POS/" + nextRegion.start); return; }
+                    if (nextRegion) { wwr_req("SET/POS_STR/r" + nextRegion.id); return; }
                 }
                 if (document.getElementById('autoStopToggle').checked && !activeRegion.chain) {
                     wwr_req(1016); 
                     var nextRegion2 = findNextValidSong(activeIdx);
-                    if (nextRegion2) { setTimeout(function() { wwr_req("SET/POS/" + nextRegion2.start); triggerMidi(); }, 100); }
+                    if (nextRegion2) {
+                        setTimeout(function() { wwr_req("SET/POS_STR/r" + nextRegion2.id)}, 100);
+                        setTimeout(function() { triggerMidi(); }, 100);
+                    }
                 }
             }
         }
@@ -931,7 +934,7 @@
     function playRegion(start, id) {
         var queueMode = document.getElementById('queueModeToggle').checked;
         if (!isPlaying || !queueMode) {
-            wwr_req("SET/POS/" + start); wwr_req(1007); queuedRegion = null;
+            wwr_req("SET/POS_STR/r" + id); wwr_req(1007); queuedRegion = null;
             var allItems = document.querySelectorAll('.region-item');
             for(var i=0; i<allItems.length; i++) allItems[i].classList.remove('queued');
         } else {
@@ -952,17 +955,18 @@
         setTimeout(function() { wwr_req(1016); }, 100); // send stop after 100ms
     }
     
-    function cueRegion(start, id) { wwr_req(1016); wwr_req("SET/POS/" + start); flashRow(id); triggerMidi(); }
+    function cueRegion(start, id) { wwr_req(1016); wwr_req("SET/POS_STR/r" + id); flashRow(id); setTimeout(() => {triggerMidi()}, 100); }
     
     function smartStop() {
         var activeIdx = -1;
         for(var i=0; i<displayList.length; i++) {
             var r = displayList[i]; if (currentPos >= r.start && currentPos <= r.end) { activeIdx = i; break; }
         }
-        var targetPos = null;
-        if (activeIdx !== -1) targetPos = displayList[activeIdx].start;
-        else if (displayList.length > 0) targetPos = displayList[0].start; 
-        wwr_req(1016); if (targetPos !== null) setTimeout(function() { wwr_req("SET/POS/" + targetPos); }, 150);
+        var targetId = null;
+        if (activeIdx !== -1) targetId = displayList[activeIdx].id;
+        else if (displayList.length > 0) targetId = displayList[0].id; 
+        wwr_req(1016);
+        if (targetId !== null) setTimeout(function() { wwr_req("SET/POS_STR/r" + targetId); }, 150);
     }
     
     function togglePlay() {
